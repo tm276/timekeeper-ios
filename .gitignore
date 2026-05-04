@@ -1,0 +1,5 @@
+.build/
+xtool/
+*.log
+.DS_Store
+Resources/

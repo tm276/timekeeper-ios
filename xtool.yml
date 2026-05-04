@@ -1,0 +1,16 @@
+version: 1
+bundleID: com.neon-dreams.timekeeper
+info:
+  CFBundleURLTypes:
+    - CFBundleURLSchemes:
+        - com.googleusercontent.apps.236447425718-es54f10s53knedr49r08f9r5dqal6crj
+  NSLocationWhenInUseUsageDescription: "TimeKeeper uses your location to check which client site you are at when starting a timer."
+  NSLocationTemporaryFullAccuracyUsageDescription: "TimeKeeper needs precise location to match you to a client work site."
+  NSLocationAlwaysAndWhenInUseUsageDescription: "TimeKeeper uses your location to check which client site you are at when starting a timer."
+  CFBundleIcons:
+    CFBundlePrimaryIcon:
+      CFBundleIconFiles:
+        - AppIcon
+resources:
+  - Resources/AppIcon.png
+icon: Resources/AppIcon.png
