@@ -35,7 +35,28 @@ final class TimeLogStore: @unchecked Sendable {
             self.clients = [defaultClient]
             persistence.saveClients(self.clients)
         } else {
-            self.clients = loadedClients
+            // Migrate old defaultfolder/ prefix from stored localFolder
+            self.clients = loadedClients.map { client in
+                guard client.localFolder.hasPrefix("defaultfolder/") else { return client }
+                let fixed = String(client.localFolder.dropFirst("defaultfolder/".count))
+                return ClientProfile(
+                    id: client.id,
+                    clientName: client.clientName,
+                    userName: client.userName,
+                    csvFileName: client.csvFileName,
+                    localFolder: fixed,
+                    googleDriveAccount: client.googleDriveAccount,
+                    googleDriveFolder: client.googleDriveFolder,
+                    nextcloudUrl: client.nextcloudUrl,
+                    nextcloudUser: client.nextcloudUser,
+                    nextcloudPassword: client.nextcloudPassword,
+                    nextcloudFolder: client.nextcloudFolder,
+                    autoSyncEnabled: client.autoSyncEnabled,
+                    syncGoogleDriveEnabled: client.syncGoogleDriveEnabled,
+                    syncNextcloudEnabled: client.syncNextcloudEnabled
+                )
+            }
+            persistence.saveClients(self.clients)
         }
 
         if let activeClientId,
@@ -280,7 +301,7 @@ final class TimeLogStore: @unchecked Sendable {
     }
 
     private static func defaultLocalFolderForClient(_ clientName: String) -> String {
-        "defaultfolder/\(sanitizeFileName(clientName))"
+        sanitizeFileName(clientName)
     }
 
     private static func sanitizeFileName(_ value: String) -> String {

@@ -66,7 +66,7 @@ enum CsvShareUtils {
     private static func clientFolderURL(for client: ClientProfile) -> URL {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let folder = client.localFolder.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? "defaultfolder/\(sanitizeFileName(client.clientName))"
+            ? sanitizeFileName(client.clientName)
             : client.localFolder
 
         return documents.appendingPathComponent(folder, isDirectory: true)

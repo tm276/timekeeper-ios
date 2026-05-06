@@ -4,6 +4,8 @@ import CoreLocation
 
 struct ContentView: View, @unchecked Sendable {
 
+    @Environment(\.scenePhase) private var scenePhase
+
     @State private var store = TimeLogStore()
     @State private var newClientName = ""
     @State private var editingClientId = ""
@@ -61,6 +63,12 @@ private let siteAccent = Color(red: 0.65, green: 0.84, blue: 0.66)
             .onAppear {
                 reloadStore()
                 Task { await refreshCurrentSite() }
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    reloadStore()
+                    Task { await refreshCurrentSite() }
+                }
             }
             .alert("Delete \(clientToDelete?.clientName ?? "client")?", isPresented: $showDeleteClientConfirm) {
                 Button("Delete", role: .destructive) {
@@ -288,6 +296,14 @@ private let siteAccent = Color(red: 0.65, green: 0.84, blue: 0.66)
 
 
 }
+struct WrongSiteWarning: Identifiable {
+    let id = UUID()
+    let siteName: String
+    let clientName: String
+    let clientId: String
+    let matches: [(id: String, name: String, siteName: String)]
+}
+
 struct ClientDashboardView: View {
 
     let clientId: String
@@ -302,12 +318,9 @@ struct ClientDashboardView: View {
     @State private var showEditDescriptionDialog = false
     @State private var isSyncing = false
     @State private var syncStatusText = ""
-    @State private var showWrongSiteWarning = false
+    @State private var wrongSiteWarning: WrongSiteWarning? = nil
     @State private var navigateToWarningClient = false
-    @State private var warningSiteName = ""
-    @State private var warningClientName = ""
     @State private var warningClientId = ""
-    @State private var warningMatchedClients: [(id: String, name: String, siteName: String)] = []
     private let locationProvider = CurrentLocationProvider()
     @State private var editDescription = ""
     @State private var editStartMillis: Int64 = 0
@@ -501,22 +514,22 @@ struct ClientDashboardView: View {
             .padding()
         }
         .background(Color(red: 0.07, green: 0.07, blue: 0.07))
-        .sheet(isPresented: $showWrongSiteWarning) {
+        .sheet(item: $wrongSiteWarning) { warning in
             VStack(alignment: .leading, spacing: 16) {
                 Text("Wrong Client Site?")
                     .font(.headline)
                     .fontWeight(.bold)
                     .foregroundStyle(primaryText)
 
-                Text("You appear to be at \(warningSiteName). The following clients are registered at this location:")
+                Text("You appear to be at \(warning.siteName). The following clients are registered at this location:")
                     .foregroundStyle(secondaryText)
 
                 ScrollView {
                     VStack(spacing: 8) {
-                        ForEach(warningMatchedClients, id: \.id) { match in
+                        ForEach(warning.matches, id: \.id) { match in
                         Button {
                             warningClientId = match.id
-                            showWrongSiteWarning = false
+                            wrongSiteWarning = nil
                             navigateToWarningClient = true
                         } label: {
                                 VStack(alignment: .leading, spacing: 4) {
@@ -538,7 +551,7 @@ struct ClientDashboardView: View {
                 }
 
                 Button("Start Anyway for \(store.getClientById(clientId)?.clientName ?? "this client")") {
-                    showWrongSiteWarning = false
+                    wrongSiteWarning = nil
                     startTimer()
                 }
                 .fontWeight(.semibold)
@@ -549,7 +562,7 @@ struct ClientDashboardView: View {
                 .contentShape(Rectangle())
 
                 Button("Cancel") {
-                    showWrongSiteWarning = false
+                    wrongSiteWarning = nil
                 }
                 .fontWeight(.semibold)
                 .frame(maxWidth: .infinity, minHeight: 52)
@@ -705,20 +718,19 @@ struct ClientDashboardView: View {
             let currentClientMatches = matches.filter { $0.workSite.clientId == clientId }
             if !wrongMatches.isEmpty && currentClientMatches.isEmpty {
                 let first = wrongMatches[0]
-                warningSiteName = first.workSite.siteName
-                warningClientName = store.getClientById(first.workSite.clientId)?.clientName ?? "another client"
-                warningClientId = first.workSite.clientId
-                warningMatchedClients = wrongMatches.map { match in
+                let matched: [(id: String, name: String, siteName: String)] = wrongMatches.map { match in
                     (
                         id: match.workSite.clientId,
                         name: store.getClientById(match.workSite.clientId)?.clientName ?? "Unknown",
                         siteName: match.workSite.siteName
                     )
                 }
-                // Delay sheet presentation so SwiftUI can update warningMatchedClients first
-                let show = true
-                await Task.yield()
-                showWrongSiteWarning = show
+                wrongSiteWarning = WrongSiteWarning(
+                    siteName: first.workSite.siteName,
+                    clientName: store.getClientById(first.workSite.clientId)?.clientName ?? "another client",
+                    clientId: first.workSite.clientId,
+                    matches: matched
+                )
                 return
             }
         }
